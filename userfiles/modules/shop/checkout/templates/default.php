@@ -15,7 +15,7 @@ description: Default cart template
     <module type="users/register"/>
 <?php else: ?>
     <?php if ($payment_success == false): ?>
-
+    <h2>Complete your order</h2>
         <form class="mw-checkout-form" id="checkout_form_<?php print $params['id'] ?>" method="post"
               action="<?php print api_link('checkout') ?>">
             <?php $cart_show_enanbled = get_option('data-show-cart', $params['id']); ?>
@@ -114,9 +114,9 @@ description: Default cart template
                         <label class="mw-ui-check">
                             <input type="checkbox" name="terms" id="i_agree_with_terms" value="1" autocomplete="off"/>
                             <span class="edit" field="i_agree_with_terms_text" rel="shop_checkout">
-      <?php _e('I agree with'); ?>
-                                <a href="<?php print site_url('tems') ?>" target="_blank">
-      <?php _e('terms and conditions'); ?>
+      <?php _e('I agree with the'); ?>
+			  <a href="<?php print site_url('terms-and-conditions') ?>" target="_blank">
+      <?php _e('Terms and Conditions'); ?>
       </a>
       
       </span>

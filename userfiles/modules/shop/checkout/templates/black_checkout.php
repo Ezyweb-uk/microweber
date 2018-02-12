@@ -21,7 +21,7 @@ version: 0.9
 
 
     <?php if ($payment_success == false): ?>
-
+    <h2>Complete your order</h2>
         <form class="mw-checkout-form" id="checkout_form_<?php print $params['id'] ?>" method="post"
               action="<?php print api_link('checkout') ?>" style="background-color:black">
 

@@ -18,7 +18,7 @@ description: Checkout 1 cart template
     <?php else: ?>
 
         <?php if ($payment_success == false): ?>
-
+    <h2>Complete your order</h2>
             <form class="mw-checkout-form" id="checkout_form_<?php print $params['id'] ?>" method="post" action="<?php print api_link('checkout') ?>">
                 <?php $cart_show_enanbled = get_option('data-show-cart', $params['id']); ?>
                 <div <?php if ($step != 1): ?>style="display: none;"<?php endif; ?>>
