@@ -1221,7 +1221,7 @@ a:hover .mw_del_tree_content, a:hover .mw_ed_tree_show_posts, a:hover .mw_tree_s
 #create-content-btn .mai-plus {
     color: #0082d5;
     font-size: 14px;
-    margin-right: 2px;
+    margin-right: 12px;
     position: relative;
 }
 
@@ -1535,6 +1535,7 @@ a:hover .mw_del_tree_content, a:hover .mw_ed_tree_show_posts, a:hover .mw_tree_s
 }
 
 #custom-fields-post-table .mw-liveedit-field {
+    width: 100%;
     min-width: 55px;
     font-size: 13px;
     height: auto;
@@ -1544,9 +1545,7 @@ a:hover .mw_del_tree_content, a:hover .mw_ed_tree_show_posts, a:hover .mw_tree_s
     background-color: #FAFAFA;
 }
 
-#custom-fields-post-table .mw-ui-field {
-    width: 80%;
-}
+
 
 #custom-fields-post-table .mw-icon-gear {
     font-size: 20px;
@@ -1638,6 +1637,15 @@ a:hover .mw_del_tree_content, a:hover .mw_ed_tree_show_posts, a:hover .mw_tree_s
     padding: 0 20px 0 3px;
     position: relative;
     white-space: pre-line;
+}
+.mw-admin-custom-field-value-edit-inline-holder .mw-admin-custom-field-name-edit-inline{
+    padding-right: 15px;
+}
+.mw-admin-custom-field-value-edit-inline{
+    background-color: #eee;
+}
+.custom-field-comma{
+    display: none;
 }
 
 .mw-admin-custom-field-value-edit-inline:before, .mw-admin-custom-field-name-edit-inline:before {
@@ -1758,6 +1766,7 @@ tr .mw-admin-custom-field-value-edit-inline:hover:before, tr .mw-admin-custom-fi
     position: relative;
     display: inline-block;
     vertical-align: middle;
+    margin:3px;
 }
 
 .custom-fields-values-holder .mw-admin-custom-field-value-edit-inline-holder:last-child .custom-field-comma {
@@ -1835,7 +1844,7 @@ tr .mw-admin-custom-field-value-edit-inline:hover:before, tr .mw-admin-custom-fi
     border: none;
     display: block;
     text-align: center;
-    width: 130px;
+    width: 90px;
     padding: 14px;
 }
 
@@ -2427,10 +2436,10 @@ body.editorediting #content-title-field-row, body.editorediting #quick-add-post-
 
 .post-states-tip-nav .mw-ui-btn {
     border: none;
-    display: block;
     background-color: transparent;
     padding-left: 14px;
     padding-right: 14px;
+    justify-content: left;
 }
 
 .post-states-tip-nav .mw-ui-btn:hover {
@@ -2683,9 +2692,6 @@ input#edit-content-url:focus, input#edit-content-url.active {
 }
 
 .toolbar-live-edit span {
-    font-size: 17px;
-    vertical-align: middle;
-    float: left;
     margin-right: 10px;
 }
 
@@ -3171,6 +3177,11 @@ body.grabbing, body.grabbing * {
 
 .mw-custom-field-icon-date:before {
     content: '\0105';
+}
+
+.mw-custom-field-icon-time:before {
+	font-family: 'Microweber';
+    content: '\f2d6';
 }
 
 .mw-custom-field-icon-email:before {
@@ -4692,42 +4703,8 @@ html[dir="rtl"] #upload-icoimage {
     border-right-width: 0px;
 }
 
-.top-search {
-    border: 1px solid #a8a8a8;
-    height: 32px;
-    width: 190px;
-    background: #f5f5f5;
-    border-radius: 2px;
-    position: relative;
-    right: 0;
-}
 
-.top-search input {
-    width: 148px !important;
-    height: 30px;
-    padding: 10px;
-    border: none;
-    outline: none;
-    float: left;
-    position: absolute;
 
-    width: 100%;
-    color: #000;
-    background: #f8f8f8;
-    width: 100%;
-    border-color: #c2c2c2;
-}
-
-.top-search input:focus {
-    background: #fff;
-    border-color: #82c4ed;
-    -webkit-box-shadow: 0 0 10px #82c4ed;
-    box-shadow: 0 0 10px #82c4ed;
-}
-
-.top-search .top-form-submit {
-    background: transparent;
-}
 
 .golive-button {
 
@@ -4748,23 +4725,6 @@ html[dir="rtl"] #upload-icoimage {
 }
 
 @media (max-width: 1140px) {
-
-    .top-search {
-        width: 36px;
-    }
-
-    .top-search:hover, .top-search.focused {
-        width: 150px;
-    }
-
-    .top-search input {
-        display: none;
-    }
-
-    .top-search:hover input,
-    .top-search.focused input {
-        display: block;
-    }
 
     .editbtn {
         background-position: center;
@@ -4821,8 +4781,7 @@ html[dir="rtl"] #upload-icoimage {
     line-height: 13px;
 }
 
-#custom_link_controller .mw-ui-btn-info,
-#custom_link_inline_controller .mw-ui-btn {
+#custom_link_controller .mw-ui-btn-info{
     line-height: 14px;
 }
 
@@ -5000,7 +4959,6 @@ html[dir="rtl"] #upload-icoimage {
 
     .browser-ctrl-bar .mw-ui-searchfield {
         display: block;
-        margin-top: 10px;
         width: 200px;
     }
 
@@ -7141,6 +7099,10 @@ select.silver-field {
 .mw-custom-field-title {
     height: 30px;
     display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
 }
 
 @media screen and (max-width: 991px) {
@@ -7323,7 +7285,7 @@ select.silver-field {
 }
 
 .mw-advanced-settings ul li a {
-    display: block;
+    display: flex;
 }
 
 .mw-advanced-settings .box-title i {

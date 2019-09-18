@@ -25,6 +25,7 @@ setInterval(function(){
 mw.require("files.js");
 mw.require("css_parser.js");
 mw.require("components.js");
+mw.require("content.js");
 mw.require("color.js");
 mw.lib.require("acolorpicker");
 //mw.require(mw.settings.includes_url + "css/ui.css");
@@ -141,6 +142,47 @@ if (!window.escape) {
     };
 }
 mw.tools = {
+    fragment: function(){
+        if(!this._fragment){
+            this._fragment = document.createElement('div');
+            this._fragment.style.visibility = 'hidden';
+            this._fragment.style.position = 'absolute';
+            this._fragment.style.width = '1px';
+            this._fragment.style.height = '1px';
+            document.body.appendChild(this._fragment);
+        }
+        return this._fragment;
+    },
+    _isBlockCache:{},
+    isBlockLevel:function(node){
+        if(!node || node.nodeType === 3){
+            return false;
+        }
+        var name = node.nodeName;
+        if(typeof this._isBlockCache[name] !== 'undefined'){
+            return this._isBlockCache[name];
+        }
+        var test = document.createElement(name);
+        this.fragment().appendChild(test);
+        this._isBlockCache[name] = getComputedStyle(test).display === 'block';
+        this.fragment().removeChild(test);
+        return this._isBlockCache[name];
+    },
+    _isInlineCache:{},
+    isInlineLevel:function(node){
+        if(node.nodeType === 3){
+            return false;
+        }
+        var name = node.nodeName;
+        if(typeof this._isInlineCache[name] !== 'undefined'){
+            return this._isInlineCache[name];
+        }
+        var test = document.createElement(name);
+        this.fragment().appendChild(test);
+        this._isInlineCache[name] = getComputedStyle(test).display === 'inline' && node.nodeName !== 'BR';
+        this.fragment().removeChild(test);
+        return this._isInlineCache[name];
+    },
     elementOptions: function(el) {
         var opt = ( el.dataset.options || '').trim().split(','), final = {};
         if(!opt[0]) return final;
@@ -211,7 +253,6 @@ mw.tools = {
         setTimeout(function(){
             insertDetector();
         }, 100);
-
         frame.scrolling="no";
         frame.style.minHeight = 0 + 'px';
         mw.$(frame).on('load resize', function(){
@@ -674,45 +715,6 @@ mw.tools = {
     },
     tip: function (o) {
         return mw.tools.tooltip.init(o);
-    },
-    inlineModal: function (o) {
-        /*
-         **********************************************
-         mw.tools.inlineModal({
-         element: "#selector", Node or jQuery Object *: Required - The element in which the 'inlineModal' will be put.
-         content: string, Node or jQuery Object *: content for the 'inlineModal'.
-         template: string *: sets class for the 'inlineModal'. Default - ".mw-inline-modal-default"
-         });
-         ***********************************************
-         */
-        var tpl = o.template || 'mw-inline-modal-default';
-        if (o.element === null || typeof o.element === 'undefined') {
-            return false;
-        }
-        if (o.content === null || typeof o.content === 'undefined') {
-            o.content = "";
-        }
-        var m = mwd.createElement('div'), c = mwd.createElement('div');
-        mw.wysiwyg.contentEditable(m, false);
-        m.className = 'mw-inline-modal ' + tpl;
-        c.className = 'mw-inline-modal-container';
-        c.innerHTML = '<span class="mw-inline-modal-container-close" onclick="$(mw.tools.firstParentWithClass(this, \'mw-inline-modal\')).remove();"></span>';
-        m.innerHTML = '<div class="mw-inline-modal-overlay"></div>';
-        var pos = mw.$(o.element).css("position");
-        if (pos != 'relative' && pos != 'absolute' && pos != 'fixed') {
-            mw.$(o.element).css("position", "relative");
-        }
-        if (typeof o.content === 'object') {
-            o.content = mw.$(o.content).clone(true);
-            o.content.show();
-        }
-        mw.$(c).append(o.content);
-        m.appendChild(c);
-        mw.$(o.element).append(m);
-        var h1 = mw.$(o.element).outerHeight();
-        var h2 = mw.$(c).outerHeight();
-        c.style.top = h1 / 2 - h2 / 2 + "px";
-        return m;
     },
     cssNumber: function (val) {
         var units = ["px", "%", "in", "cm", "mm", "em", "ex", "pt", "pc"];
@@ -1677,171 +1679,6 @@ mw.tools = {
         var allFields = "textarea, select, input[type='checkbox']:checked, input[type='color'], input[type='date'], input[type='datetime'], input[type='datetime-local'], input[type='email'], input[type='file'], input[type='hidden'], input[type='month'], input[type='number'], input[type='password'], input[type='radio']:checked, input[type='range'], input[type='search'], input[type='tel'], input[type='text'], input[type='time'], input[type='url'], input[type='week']";
         return mw.$(allFields, fields).not(':disabled');
     },
-    tree: {
-        toggle: function (el, event) {
-            mw.$(el.parentNode).toggleClass('active');
-            var master = mw.tools.firstParentWithClass(el, 'mw-tree');
-            mw.tools.tree.remember(master);
-            "mw.admin.treeboxwidth"._exec();
-            if (event.type === 'click') {
-                event.stopPropagation();
-                event.preventDefault();
-                return false;
-            }
-        },
-        open: function (el, parents) {
-            var parents = parents || false;
-            mw.$(el.parentNode).addClass('active');
-            var master = mw.tools.firstParentWithClass(el, 'mw-tree');
-            mw.tools.tree.remember(master);
-            if (!parents) return;
-            mw.tools.foreachParents(el, function (loop) {
-                if (mw.tools.hasClass(this, 'mw-tree')) {
-                    mw.tools.stopLoop(loop);
-                }
-                else {
-                    if (this.nodeName === 'LI') {
-                        mw.tools.tree.open(this.querySelector('.pages_tree_link'), false)
-                    }
-                }
-            });
-        },
-        del: function (id, callback) {
-            mw.tools.confirm(mw.msg.del, function () {
-                if (mw.notification != undefined) {
-                    mw.notification.success('Content deleted');
-                }
-                $.post(mw.settings.site_url + "api/content/delete", {id: id}, function (data) {
-                    if (callback) {
-
-                        callback.call(data, data)
-                    }
-                });
-            })
-        },
-        del_category: function (id, callback) {
-            mw.tools.confirm('Are you sure you want to delete this?', function () {
-                $.post(mw.settings.site_url + "api/category/delete", {id: id}, function (data) {
-                    mw.notification.success('Category deleted');
-                    if (callback) {
-
-                        callback.call(data, data)
-                    }
-                });
-            })
-        },
-        detectType: function (tree_object) {
-            if (tree_object !== null && typeof tree_object === 'object') {
-                return tree_object.querySelector('li input[type="checkbox"], li input[type="radio"]') !== null ? 'selector' : 'controller';
-            }
-        },
-        remember: function (tree) {
-            var type = mw.tools.tree.detectType(tree);
-            if (type === 'controller') {
-                _remember = "";
-                var lis = tree.querySelectorAll("li.active");
-                var len = lis.length;
-                $.each(lis, function (i) {
-                    i++;
-                    if (!!this.attributes['data-item-id']) {
-                        var id = this.attributes['data-item-id'].nodeValue;
-                        _remember = i < len ? _remember + id + "," : _remember + id;
-                    }
-                });
-                mw.cookie.ui("tree_" + tree.id, _remember);
-            }
-        },
-        recall: function (tree) {
-            if (tree) {
-                var ids = mw.cookie.ui("tree_" + tree.id);
-                if (typeof(ids) != 'undefined' && ids != false) {
-                    var ids = ids.split(",");
-                    $.each(ids, function (a, b) {
-                        if (tree.querySelector('.item_' + b)) {
-                            tree.querySelector('.item_' + b).className += ' active';
-                        }
-                    });
-                }
-            }
-        },
-        toggleit: function (el, event, pageid) {
-            event.stopPropagation();
-            mw.tools.tree.toggle(el, event);
-        },
-        openit: function (el, event, pageid) {
-            event.stopPropagation();
-            if (mw.askusertostay === true) {
-                return false;
-            }
-            if (el.attributes['data-page-id'] !== undefined) {
-                mw.url.windowHashParam('action', 'showposts:' + pageid);
-            }
-            else if (el.attributes['data-category-id'] !== undefined) {
-                mw.url.windowHashParam('action', 'showpostscat:' + pageid);
-            }
-            mw.tools.tree.open(el, event);
-            'mw.admin.treeboxwidth'._exec();
-        },
-        closeAll: function (tree) {
-            mw.$(tree.querySelectorAll('li')).removeClass('active').removeClass('active-bg');
-            mw.tools.tree.remember(tree);
-            'mw.admin.treeboxwidth'._exec();
-        },
-        openAll: function (tree) {
-            mw.$(tree.querySelectorAll('li')).addClass('active');
-            mw.tools.tree.remember(tree);
-            'mw.admin.treeboxwidth'._exec();
-        },
-        checker: function (el) {
-            var is_checkbox = el.getElementsByTagName('input')[0];
-            if (is_checkbox.type != 'checkbox') {
-                return false;
-            }
-            var state = el.getElementsByTagName('input')[0].checked;
-            if (state === true) {
-                if (is_checkbox.type == 'checkbox') {
-                    var ul = mw.tools.firstParentWithClass(is_checkbox, 'pages_tree');
-                    if (ul != false) {
-                        if (ul.querySelector('input[type="radio"]:checked') !== null) {
-                            return false;
-                        }
-                    }
-                }
-                mw.tools.foreachParents(el.parentNode, function (loop) {
-                    this.tagName === 'LI' ? this.getElementsByTagName('input')[0].checked = true : '';
-                    this.tagName === 'DIV' ? mw.tools.stopLoop(loop) : '';
-                });
-            }
-            else {
-            }
-        },
-        old_checker: function (el) {
-            var is_checkbox = el.getElementsByTagName('input')[0];
-            if (is_checkbox.type != 'checkbox') {
-                return false;
-            }
-            var state = el.getElementsByTagName('input')[0].checked;
-            if (state === true) {
-                mw.tools.foreachParents(el.parentNode, function (loop) {
-                    this.tagName === 'LI' ? this.getElementsByTagName('input')[0].checked = true : '';
-                    this.tagName === 'DIV' ? mw.tools.stopLoop(loop) : '';
-                });
-            }
-            else {
-                var f = el.parentNode.getElementsByTagName('input'), i = 0, len = f.length;
-                for (; i < len; i++) {
-                    f[i].checked = false;
-                }
-            }
-        },
-        viewChecked: function (tree) {
-            var all = tree.querySelectorAll('li input'), i = 0, len = all.length;
-            for (; i < len; i++) {
-                var curr = all[i];
-                curr.parentNode.parentNode.style.display = !curr.checked ? 'none' : '';
-            }
-        }
-    },
     hasClass: function (classname, whattosearch) {
         if (classname === null) {
             return false;
@@ -1936,7 +1773,8 @@ mw.tools = {
     parentsOrCurrentOrderMatch: function (node, arr) {
         var curr = node,
             match = {a: 0, b: 0},
-            count = 1;
+            count = 1,
+            hadA = false;
         while (curr !== document.body) {
             count++;
             var h1 = mw.tools.hasClass(curr, arr[0]);
@@ -1950,23 +1788,56 @@ mw.tools = {
             else {
                 if (h1) {
                     match.a = count;
+                    hadA = true;
                 }
                 else if (h2) {
                     match.b = count;
                 }
                 if (match.b > match.a) {
-                    return true;
+                    return hadA ? true : false;
                 }
             }
             curr = curr.parentNode;
         }
         return false;
     },
+    parentsOrCurrentOrderMatchOrNone:function(node, arr){
+        if(!node) return false;
+        var curr = node,
+            match = {a: 0, b: 0},
+            count = 1,
+            hadA = false;
+        while (curr && curr !== document.body) {
+            count++;
+            var h1 = mw.tools.hasClass(curr, arr[0]);
+            var h2 = mw.tools.hasClass(curr, arr[1]);
+            if (h1 && h2) {
+                if (match.a > 0) {
+                    return true;
+                }
+                return false;
+            }
+            else {
+                if (h1) {
+                    match.a = count;
+                    hadA = true;
+                }
+                else if (h2) {
+                    match.b = count;
+                }
+                if (match.b > match.a) {
+                    return hadA ? true : false;
+                }
+            }
+            curr = curr.parentNode;
+        }
+        return match.a === 0 && match.b === 0;
+    },
     parentsOrCurrentOrderMatchOrOnlyFirstOrBoth: function (node, arr) {
         var curr = node,
             has1 = false,
             has2 = false;
-        while (curr !== document.body) {
+        while (curr && curr !== document.body) {
             var h1 = mw.tools.hasClass(curr, arr[0]);
             var h2 = mw.tools.hasClass(curr, arr[1]);
             if (h1 && h2) {
@@ -1982,7 +1853,7 @@ mw.tools = {
             }
             curr = curr.parentNode;
         }
-        return true;
+        return false;
     },
     matchesAnyOnNodeOrParent: function (node, arr) {
         var curr = node;
@@ -2436,46 +2307,7 @@ mw.tools = {
         mw.$(toggler).toggleClass('toggler-active');
         mw.is.func(callback) ? callback.call(who) : '';
     },
-    memoryToggle: function (toggler) {
-        if (typeof _MemoryToggleContentID == 'undefined') return false;
-        var id = toggler.id;
-        var who = mw.$(toggler).dataset('for');
-        mw.tools.toggle(who, "#" + id);
-        var page = "page_" + _MemoryToggleContentID;
-        var is_active = mw.$(toggler).hasClass('toggler-active');
-        if (_MemoryToggleContentID == '0') return false;
-        var curr = mw.cookie.ui(page);
-        if (curr == "") {
-            var obj = {}
-            obj[id] = is_active;
-            mw.cookie.ui(page, obj);
-        }
-        else {
-            curr[id] = is_active;
-            mw.cookie.ui(page, curr);
-        }
-    },
-    memoryToggleRecall: function () {
-        if (typeof _MemoryToggleContentID == 'undefined') return false;
-        var page = "page_" + _MemoryToggleContentID;
-        var curr = mw.cookie.ui(page);
-        if (curr != "") {
-            $.each(curr, function (a, b) {
-                if (b == true) {
-                    var toggler = mw.$("#" + a);
-                    toggler.addClass('toggler-active');
-                    var who = toggler.dataset("for");
-                    mw.$(who).show().addClass('toggle-active');
-                    var callback = toggler.dataset("callback");
-                    if (callback != "") {
-                        mw.wait(callback, function () {
-                            window[callback]();
-                        });
-                    }
-                }
-            });
-        }
-    },
+
     confirm: function (question, callback) {
         var html = ''
             + '<table class="mw_alert" width="100%" height="140" cellpadding="0" cellspacing="0">'
@@ -2484,11 +2316,11 @@ mw.tools = {
             + '</tr>'
             + '</table>';
 
-        var ok = $('<span class="mw-ui-btn mw-ui-btn-medium mw-ui-btn-info">'+mw.msg.ok+'</span>');
+        var ok = $('<span tabindex="99999" class="mw-ui-btn mw-ui-btn-medium mw-ui-btn-info">'+mw.msg.ok+'</span>');
         var cancel = $('<span class="mw-ui-btn mw-ui-btn-medium ">' + mw.msg.cancel + '</span>');
 
         if (mw.$("#mw_confirm_modal").length === 0) {
-            var modal = mw.dialog({
+            var modal = mw.top().dialog({
                 content: html,
                 width: 400,
                 height: 'auto',
@@ -2518,7 +2350,7 @@ mw.tools = {
             modal.remove();
         });
         setTimeout(function () {
-            mw.$("button.mw_confirm_modal_ok", modal.main).focus();
+            mw.$(ok).focus();
         }, 120);
         return modal;
     },
@@ -2975,80 +2807,69 @@ mw.tools = {
         }
         return diff;
     },
+
     liveEdit: function (el, textonly, callback, fieldClass) {
-        if (el.getElementsByTagName('input').length === 0) {
-            var textonly = textonly || true;
-            var input = mwd.createElement('input');
-            input.type = "text";
-            input.className = (fieldClass || "mw-ui-field") + ' mw-liveedit-field';
-            input.style.width = mw.$(el).width() + 'px';
-            if (textonly === true) {
-                input.value = el.textContent;
-                input.onblur = function () {
-                    var val = this.value;
-                    var ischanged = this.changed === true;
-                    setTimeout(function () {
-                        mw.$(el).text(val);
-                        if (typeof callback === 'function' && ischanged) {
-                            callback.call(val, el);
-                        }
-                    }, 3);
-                }
-                input.onkeydown = function (e) {
-                    if (e.keyCode === 13) {
-                        var val = this.value;
-                        mw.$(el).text(val);
-                        if (typeof callback === 'function') {
-                            callback.call(val, el);
-                        }
-                        return false;
-                    }
-                }
-            }
-            else {
-                input.value = el.innerHTML;
-                input.onblur = function () {
-                    var val = this.value;
-                    var ischanged = this.changed === true;
-                    setTimeout(function () {
-                        el.innerHTML = val;
-                        if (typeof callback === 'function' && ischanged) {
-                            callback.call(val, el);
-                        }
-                    }, 3)
-                }
-                input.onkeydown = function (e) {
-                    if (e.keyCode === 13) {
-                        var val = this.value
-                        el.innerHTML = val;
-                        if (typeof callback === 'function') {
-                            callback.call(val, el);
-                        }
-                        return false;
-                    }
-                }
-            }
-            mw.$(el).empty().append(input);
-            mw.$(input).focus();
-            input.changed = false;
-            mw.$(input).change(function () {
-                this.changed = true;
-            });
-            mw.$(input).bind('keydown keyup paste', function (e) {
-                var el = this;
-                el.style.width = 0 + 'px';
-                el.style.width = el.scrollWidth + 6 + 'px';
-                if (e.type === 'paste') {
-                    setTimeout(function () {
-                        el.style.width = 0 + 'px';
-                        el.style.width = el.scrollWidth + 6 + 'px';
-                    }, 70);
-                }
-                if (mw.is.ie) {
-                    el.style.width = (el.value.length * 5.9) + 'px';
-                }
-            });
+        if (!el || el.querySelector('.mw-live-edit-input') !== null) {
+            return;
         }
+        textonly = (typeof textonly === 'undefined') ? true : textonly;
+        var input = mwd.createElement('span');
+        input.className = (fieldClass || "") + ' mw-live-edit-input mw-liveedit-field';
+        input.contentEditable = true;
+        var $input = $(input);
+        if (textonly === true) {
+            input.innerHTML = el.textContent;
+            input.onblur = function () {
+                var val = $input.text();
+                var ischanged = this.changed === true;
+                setTimeout(function () {
+                    mw.$(el).text(val);
+                    if (typeof callback === 'function' && ischanged) {
+                        callback.call(val, el);
+                    }
+                }, 3);
+            }
+            input.onkeydown = function (e) {
+                if (e.keyCode === 13) {
+                    e.preventDefault();
+                    mw.$(el).text($input.text());
+                    if (typeof callback === 'function') {
+                        callback.call($input.text(), el);
+                    }
+                    return false;
+                }
+            }
+        }
+        else {
+            input.innerHTML = el.innerHTML;
+            input.onblur = function () {
+                var val = this.innerHTML;
+                var ischanged = this.changed === true;
+                setTimeout(function () {
+                    el.innerHTML = val;
+                    if (typeof callback === 'function' && ischanged) {
+                        callback.call(val, el);
+                    }
+                }, 3)
+            }
+            input.onkeydown = function (e) {
+                if (e.keyCode === 13) {
+                    e.preventDefault();
+                    var val = this.innerHTML;
+                    el.innerHTML = val;
+                    if (typeof callback === 'function') {
+                        callback.call(val, el);
+                    }
+                    return false;
+                }
+            }
+        }
+        mw.$(el).empty().append(input);
+        $input.focus();
+        input.changed = false;
+        $input.change(function () {
+            this.changed = true;
+        });
         return input;
     },
     objectExtend: function (str, value) {
@@ -3475,23 +3296,7 @@ mw.tools = {
         mw.$(node).replaceWith(el);
         return el;
     },
-    _fixDeniedParagraphHierarchySelector: ''
-    + '.edit p h1,.edit p h2,.edit p h3,'
-    + '.edit p h4,.edit p h5,.edit p h6,'
-    + '.edit p p,.edit p ul,.edit p ol,'
-    + '.edit p header,.edit p form,.edit p article,'
-    + '.edit p aside,.edit p blockquote,.edit p footer,.edit p div',
-    fixDeniedParagraphHierarchy: function (root) {
-        var root = root || mwd.body;
-        if (mwd.body.querySelector(mw.tools._fixDeniedParagraphHierarchySelector) !== null) {
-            var all = root.querySelectorAll(mw.tools._fixDeniedParagraphHierarchySelector), l = all.length, i = 0;
-            for (; i < l; i++) {
-                var el = all[i];
-                var the_parent = mw.tools.firstParentWithTag(el, 'p');
-                mw.tools.setTag(the_parent, 'div');
-            }
-        }
-    },
+
     generateSelectorForNode: function (node) {
         if (node === null || node.nodeType === 3) {
             return false;
@@ -3570,114 +3375,7 @@ mw.tools = {
             });
         }
     },
-    TemplateSettingsEventsBinded: false,
-    TemplateSettingsModalDefaults: {
-        top: 100,
-        width: 300,
-        timeout: null
-    },
-    hide_template_settings: function () {
-        mw.$('.mw-template-settings').css('right', -mw.tools.TemplateSettingsModalDefaults.width - 5).addClass('mw-template-settings-hidden');
-        mw.$("#toolbar-template-settings").removeClass("mw_editor_btn_active");
-    },
-    show_template_settings: function () {
-        if (mw.$('.mw-template-settings').length === 0) {
-            mw.tools.template_settings();
-        }
-        mw.$('.mw-template-settings').css('right', 0).removeClass('mw-template-settings-hidden');
-        mw.$("#toolbar-template-settings").addClass("mw_editor_btn_active");
-        mw.cookie.set("remove_template_settings", "false");
-    },
-    toggle_template_settings: function () {
-        if (mw.$('.mw-template-settings').hasClass('mw-template-settings-hidden') || mw.$('.mw-template-settings').length === 0) {
-            mw.tools.show_template_settings();
-        }
-        else {
-            mw.tools.hide_template_settings();
-        }
-    },
-    template_settings: function (justInit) {
-        var justInit = justInit || false;
-        if (mw.$('.mw-template-settings').length === 0) {
-            var src = mw.settings.site_url + 'api/module?id=settings/template&live_edit=true&module_settings=true&type=settings/template&autosize=false';
-            var modal = mw.tools.modal.frame({
-                url: src,
-                width: mw.tools.TemplateSettingsModalDefaults.width,
-                height: mw.$(window).height() - (1.5 * mw.tools.TemplateSettingsModalDefaults.top),
-                name: 'template-settings',
-                //title:'Template Settings',
-                template: 'mw-template-settings',
-                center: false,
-                resize: false,
-                draggable: false
-            });
-            mw.$(modal.main).css({
-                right: -mw.tools.TemplateSettingsModalDefaults.width - 115,
-                left: 'auto',
-                top: mw.tools.TemplateSettingsModalDefaults.top,
-                zIndex: 1299
-            }).addClass('mw-template-settings-hidden');
-            mw.$(window).bind('resize', function () {
-                clearTimeout(mw.tools.TemplateSettingsModalDefaults.timeout);
-                mw.tools.TemplateSettingsModalDefaults.timeout = setTimeout(function () {
-                    mw.tools.modal.setDimmensions(modal, undefined, mw.$(window).height() - (1.5 * mw.tools.TemplateSettingsModalDefaults.top), false);
-                }, 333);
-            });
-            mw.$('iframe', mw.$(modal.main)[0]).bind('load', function () {
-                if (justInit) {
-                    mw.tools.hide_template_settings();
-                }
-                else {
-                    mw.tools.show_template_settings();
-                }
-            });
-
-            //
-            //  Open template settings icon is sidebar
-            //  mw.$(modal.main).append('<span class="template-settings-icon"></span><span class="template-settings-close"><span class="template-settings-close-x"></span>' + mw.msg.remove + '</span>');
-
-            mw.$('.template-settings-icon').click(function () {
-                mw.tools.toggle_template_settings();
-            });
-            mw.$('.template-settings-close').click(function () {
-                mw.$('.mw-template-settings').remove();
-                mw.cookie.set("remove_template_settings", "true");
-                mw.tools.hide_template_settings();
-                var cookie = mw.cookie.get("template_settings_message");
-                if (typeof cookie == 'undefined' || cookie == 'true') {
-                    mw.cookie.set("template_settings_message", 'false', 3048);
-                    var actions = mw.$('#toolbar-template-settings');
-                    var tooltip = mw.tooltip({
-                        element: actions,
-                        content: "<div style='text-align:center;width:200px;'>" + mw.msg.templateSettingsHidden + ".</div>",
-                        position: "bottom-center"
-                    });
-                    mw.$("#toolbar-template-settings .ed-ico").addClass("action");
-                    setTimeout(function () {
-                        mw.$(tooltip).fadeOut(function () {
-                            mw.$(tooltip).remove();
-                            mw.$("#toolbar-template-settings .ed-ico").removeClass("action");
-                        });
-                    }, 2000);
-                }
-            });
-        }
-        else {
-            mw.tools.hide_template_settings();
-        }
-        if (!mw.tools.TemplateSettingsEventsBinded) {
-            mw.tools.TemplateSettingsEventsBinded = true;
-            mw.$(mwd.body).bind('click', function (e) {
-                if (!mw.tools.hasParentsWithClass(e.target, 'mw-template-settings') && !mw.tools.hasParentsWithClass(e.target, 'mw-defaults')) {
-                    mw.tools.hide_template_settings();
-                }
-            });
-        }
-    },
-
     module_settings: function (a, view, liveedit) {
-
-
         var opts = {};
         if (typeof liveedit === 'undefined') {
             opts.liveedit = true;
@@ -3688,44 +3386,7 @@ mw.tools = {
         else {
             opts.view = 'admin';
         }
-
-
         return mw.live_edit.showSettings(a, opts)
-
-
-    },
-    open_custom_css_editor: function () {
-        var src = mw.settings.site_url + 'api/module?id=mw_global_css_editor&live_edit=true&module_settings=true&type=editor/css_editor&autosize=true';
-        var modal = mw.dialogIframe({
-            url: src,
-            // width: 500,
-            height:'auto',
-            autoHeight: true,
-            name: 'mw-css-editor-front',
-            title: 'CSS Editor',
-            template: 'default',
-            center: false,
-            resize: true,
-            draggable: true
-        });
-    },
-    open_custom_html_editor: function () {
-        var src = mw.settings.site_url + 'api/module?id=mw_global_html_editor&live_edit=true&module_settings=true&type=editor/code_editor&autosize=true';
-
-        window.open(src, "Code editor", "toolbar=no, menubar=no,scrollbars=yes,resizable=yes,location=no,directories=no,status=yes");
-
-
-        //var modal = mw.tools.modal.frame({
-        //    url: src,
-        //    // width: 500,
-        //    // height: mw.$(window).height() - (2.5 * mw.tools.TemplateSettingsModalDefaults.top),
-        //    name: 'mw-html-editor-front',
-        //    title: 'HTML Editor',
-        //    template: 'default',
-        //    center: false,
-        //    resize: true,
-        //    draggable: true
-        //});
     },
     confirm_reset_module_by_id: function (module_id) {
         if (confirm("Are you sure you want to reset this module?")) {
@@ -3936,78 +3597,7 @@ mw.tools = {
         }
         return Math.round(((3 / 4) * n));
     },
-    calc: {
-        SliderButtonsNeeded: function (parent) {
-            var t = {left: false, right: false};
-            if (parent == null || !parent) {
-                return;
-            }
-            var el = parent.firstElementChild;
-            if ($(parent).width() > mw.$(el).width()) return t;
-            var a = mw.$(parent).offset().left + mw.$(parent).width();
-            var b = mw.$(el).offset().left + mw.$(el).width();
-            if (b > a) {
-                t.right = true;
-            }
-            if ($(el).offset().left < mw.$(parent).offset().left) {
-                t.left = true;
-            }
-            return t;
-        },
-        SliderNormalize: function (parent) {
-            if (parent === null || !parent) {
-                return false;
-            }
-            var el = parent.firstElementChild;
-            var a = mw.$(parent).offset().left + mw.$(parent).width();
-            var b = mw.$(el).offset().left + mw.$(el).width();
-            if (b < a) {
-                return (a - b);
-            }
-            return false;
-        },
-        SliderNext: function (parent, step) {
-            if (parent === null || !parent) {
-                return false;
-            }
-            var el = parent.firstElementChild;
-            if ($(parent).width() > mw.$(el).width()) return 0;
-            var a = mw.$(parent).offset().left + mw.$(parent).width();
-            var b = mw.$(el).offset().left + mw.$(el).width();
-            var step = step || mw.$(parent).width();
-            var curr = parseFloat(window.getComputedStyle(el, null).left);
-            if (a < b) {
-                if ((b - step) > a) {
-                    return (curr - step);
-                }
-                else {
-                    return curr - (b - a);
-                }
-            }
-            else {
-                return curr - (b - a);
-            }
-        },
-        SliderPrev: function (parent, step) {
-            if (parent === null || !parent) {
-                return false;
-            }
-            var el = parent.firstElementChild;
-            var step = step || mw.$(parent).width();
-            var curr = parseFloat(window.getComputedStyle(el, null).left);
-            if (curr < 0) {
-                if ((curr + step) < 0) {
-                    return (curr + step);
-                }
-                else {
-                    return 0;
-                }
-            }
-            else {
-                return 0;
-            }
-        }
-    },
+
     progressDefaults: {
         skin: 'mw-ui-progress',
         action: mw.msg.loading + '...',
@@ -4039,12 +3629,12 @@ mw.tools = {
             },
             set: function (v, action) {
                 if (v > 100) {
-                    var v = 100;
+                    v = 100;
                 }
                 if (v < 0) {
-                    var v = 0;
+                    v = 0;
                 }
-                var action = action || this.progress.progressInfo.action;
+                action = action || this.progress.progressInfo.action;
                 mw.$('.mw-ui-progress-bar', this.progress).css('width', v + '%');
                 mw.$('.mw-ui-progress-percent', this.progress).html(v + '%');
             }
@@ -4441,22 +4031,8 @@ mw.recommend = {
         }
     }
 }
-String.prototype.toCamelCase = function () {
-    return mw.tools.toCamelCase(this);
-};
-$.fn.datas = function () {
-    var attrs = this[0].attributes;
-    var toreturn = {}
-    for (var item in attrs) {
-        var attr = attrs[item];
-        if (attr.nodeName !== undefined) {
-            if (attr.nodeName.contains("data-")) {
-                toreturn[attr.nodeName] = attr.nodeValue;
-            }
-        }
-    }
-    return toreturn;
-}
+
+
 mw.check = {
     all: function (selector) {
         mw.$(selector).find("input[type='checkbox']").each(function () {
@@ -4487,28 +4063,14 @@ mw.check = {
         return arr;
     }
 }
-mw.walker = function (context, callback) {
-    var context = mw.is.obj(context) ? context : mwd.body;
-    var callback = mw.is.func(context) ? context : callback;
-    var walker = document.createTreeWalker(context, NodeFilter.SHOW_ELEMENT, null, false);
-    while (walker.nextNode()) {
-        callback.call(walker.currentNode);
-    }
-}
+
 Array.prototype.remove = Array.prototype.remove || function (what) {
         var i = 0, l = this.length;
         for (; i < l; i++) {
             this[i] === what ? this.splice(i, 1) : '';
         }
-    }
-Array.prototype.exposeToHash = function (name, callback) {
-    if (typeof name === 'undefined') {
-        return false;
-    }
-    mw.on.hashParam(name, function () {
-        callback.call(this);
-    });
-}
+    };
+
 Array.prototype.min = function () {
     return Math.min.apply(Math, this);
 };
@@ -4540,7 +4102,7 @@ mw._dump = function (obj) {
             var c = '<i>' + c + ')</i>';
         }
         else if (typeof b === 'object') {
-            var c = '<a href="javascript:;" onclick="mw.tools.modal.init({html: \'<h2>mw.' + a + '</h2>\' + mw._dump(mw.' + a + ')});"> + Object</a>';
+            var c = '<a href="javascript:;" onclick="mw.dialog({height: \'auto\', autoHeight: true, html: \'<h2>mw.' + a + '</h2>\' + mw._dump(mw.' + a + ')});"> + Object</a>';
         }
         else {
             var c = b.toString()
@@ -4549,13 +4111,15 @@ mw._dump = function (obj) {
     });
     html = html + '</ol>';
     return html;
-}
+};
 mw.dump = function () {
-    mw.tools.modal.init({
+    mw.dialog({
         html: mw._dump(),
-        width: 800
+        width: 800,
+        height: 'auto',
+        autoHeight: true
     });
-}
+};
 mw.notification = {
     msg: function (data, timeout, _alert) {
         var timeout = timeout || 1000;
@@ -4613,7 +4177,7 @@ mw.notification = {
         var timeout = timeout || 1000;
         mw.notification.append('warning', text, timeout);
     }
-}
+};
 $.fn.visible = function () {
     return this.css("visibility", "visible").css("opacity", "1");
 };
@@ -4635,10 +4199,11 @@ $.fn.mwDialog = function(conf){
         width: 'auto'
     };
     var settings = $.extend({}, defaults, options, conf);
-    if(conf === 'close' || conf === 'hide'){
+    if(conf === 'close' || conf === 'hide' || conf === 'remove'){
         if(el._dialog){
             el._dialog.remove()
         }
+        return;
     }
     $(el).before('<mw-dialog-temp id="'+idEl+'"></mw-dialog-temp>');
     var dialog = mw.dialog(settings);
@@ -4675,26 +4240,7 @@ mw.which = function (str, arr_obj, func) {
         }
     }
 }
-mw.traverse = function (root, h) {
-    var els = root.querySelectorAll('.edit .element, .edit .module');
-    mw.$(els).each(function () {
-        _dis = this;
-        var el = mwd.createElement('span');
-        el.className = 'layer';
-        mw.$(el).data("for", this);
-        mw.$(el).click(function () {
-            if (!$(el).attr('staticdesign')) {
-                mw.$(".element-current").removeClass("element-current");
-                mw.$($(el).data("for")).addClass("element-current");
-                mw.$(_dis).remove()
-            }
-        });
-        var str = _dis.textContent.slice(0, 25);
-        el.innerHTML = mw.$(this).hasClass("module") ? 'Module' : 'Element';
-        el.innerHTML += ' - <small>' + str + '...</span>';
-        h.appendChild(el);
-    });
-}
+
 mw.isDragItem = mw.isBlockLevel = function (obj) {
     return mw.ea.helpers.isBlockLevel(obj);
 };
@@ -4779,7 +4325,7 @@ mw.storage = {
     change: function (key, callback, other) {
         if (!('localStorage' in mww)) return false;
         if (key === 'INIT' && 'addEventListener' in document) {
-            mww.addEventListener('storage', function (e) {
+            addEventListener('storage', function (e) {
                 if (e.key === 'mw') {
                     var _new = JSON.parse(e.newValue || {});
                     var _old = JSON.parse(e.oldValue || {});
@@ -4814,23 +4360,10 @@ mw.storage = {
     }
 }
 mw.storage.init();
-rcss = function () {
-    mw.$("link").each(function () {
-        var href = this.href;
-        this.href = mw.url.set_param('v', mw.random(), href);
-    });
-}
-setVisible = function (e) {
-    if (e.type == 'focus') {
-        mw.$(mw.tools.firstParentWithClass(e.target, 'mw-dropdown-content')).visible()
-    }
-    else if (e.type == 'blur') {
-        mw.$(mw.tools.firstParentWithClass(e.target, 'mw-dropdown-content')).visibilityDefault()
-    }
-}
+
 mw.postMsg = function (w, obj) {
     w.postMessage(JSON.stringify(obj), window.location.href);
-}
+};
 $(document).ready(function () {
     mw.on('mwDialogShow', function(){
         mw.$(document.documentElement).addClass('mw-dialog-opened');
@@ -4896,7 +4429,7 @@ $(document).ready(function () {
             });
         }
     });
-    _mwoldww = mw.$(window).width();
+    var _mwoldww = mw.$(window).width();
     mw.$(window).resize(function () {
         if ($(window).width() > _mwoldww) {
             mw.trigger("increaseWidth");
@@ -4933,28 +4466,7 @@ $(document).ready(function () {
             }
         }
     });
-    mw.$(".mw-pin").each(function () {
-        var el = this,
-            who = mw.$(el).dataset("for"),
-            is = mw.cookie.ui(who) == 'true';
-        if (is) {
-            mw.tools.addClass(el, 'active');
-            var who = mw.$(who);
-            who.addClass("active")
-        }
-        mw.$(el).click(function () {
-            if ($(this).hasClass("active")) {
-                mw.tools.removeClass(this, 'active');
-                var who = mw.$(el).dataset("for");
-                mw.cookie.ui(who, "false");
-            }
-            else {
-                mw.tools.addClass(this, 'active');
-                var who = mw.$(el).dataset("for");
-                mw.cookie.ui(who, "true");
-            }
-        });
-    });
+
     mw.$(".mw-image-holder").each(function () {
         if ($(".mw-image-holder-overlay", this).length === 0) {
             mw.$('img', this).eq(0).after('<span class="mw-image-holder-overlay"></span>');
@@ -4982,242 +4494,7 @@ $(document).ready(function () {
 
 
 });
-mw.ui = mw.tools;
-mw.ui.btn = {
-    radionav: function (nav, btn_selector) {
-        if (mw.tools.hasClass(nav.className, 'activated')) {
-            return false;
-        }
-        mw.tools.addClass(nav, 'activated');
-        btn_selector = btn_selector || ".mw-ui-btn";
-        var all = nav.querySelectorAll(btn_selector), i = 0, l = all.length, el;
-        for (; i < l; i++) {
-            el = all[i];
-            mw.$(el).bind('click', function () {
-                if (!mw.tools.hasClass(this.className, 'active')) {
-                    var active = nav.querySelector(btn_selector + ".active");
-                    if (active !== null) {
-                        mw.tools.removeClass(active, 'active');
-                    }
-                    this.className += ' active';
-                }
-            });
-        }
-    },
-    checkboxnav: function (nav) {
-        if (mw.tools.hasClass(nav.className, 'activated')) {
-            return false;
-        }
-        mw.tools.addClass(nav, 'activated');
-        var all = nav.querySelectorAll(".mw-ui-btn"), i = 0, l = all.length;
-        for (; i < l; i++) {
-            var el = all[i];
-            mw.$(el).bind('click', function () {
-                if (!mw.tools.hasClass(this.className, 'active')) {
-                    this.className += ' active';
-                }
-                else {
-                    mw.tools.removeClass(this, 'active');
-                }
-            });
-        }
-    }
-}
-mw.inline = {
-    bar: function (id) {
-        if (typeof id === 'undefined') {
-            return false;
-        }
-        if (mw.$("#" + id).length === 0) {
-            var bar = mwd.createElement('div');
-            bar.id = id;
-            mw.wysiwyg.contentEditable(bar, false);
-            bar.className = 'mw-defaults mw-inline-bar';
-            mwd.body.appendChild(bar);
-            return bar;
-        }
-        else {
-            return mw.$("#" + id)[0];
-        }
-    },
-    tableControl: false,
-    tableController: function (el, e) {
-        if (typeof e !== 'undefined') {
-            e.stopPropagation();
-        }
-        if (mw.inline.tableControl === false) {
-            mw.inline.tableControl = mw.inline.bar('mw-inline-tableControl');
-            mw.inline.tableControl.innerHTML = ''
-            mw.inline.tableControl.innerHTML = ''
-                + '<ul class="mw-ui-box mw-ui-navigation mw-ui-navigation-horizontal">'
-                + '<li>'
-                + '<a href="javascript:;">Insert<span class="mw-icon-dropdown"></span></a>'
-                + '<ul>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.insertRow(\'above\', mw.inline.activeCell);">Row Above</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.insertRow(\'under\', mw.inline.activeCell);">Row Under</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.insertColumn(\'left\', mw.inline.activeCell)">Column on left</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.insertColumn(\'right\', mw.inline.activeCell)">Column on right</a></li>'
-                + '</ul>'
-                + '</li>'
-                + '<li>'
-                + '<a href="javascript:;">Style<span class="mw-icon-dropdown"></span></a>'
-                + '<ul>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.setStyle(\'mw-wysiwyg-table\', mw.inline.activeCell);">Bordered</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.setStyle(\'mw-wysiwyg-table-zebra\', mw.inline.activeCell);">Bordered Zebra</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.setStyle(\'mw-wysiwyg-table-simple\', mw.inline.activeCell);">Simple</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.setStyle(\'mw-wysiwyg-table-simple-zebra\', mw.inline.activeCell);">Simple Zebra</a></li>'
-                + '</ul>'
-                + '</li>'
-                + '<li>'
-                + '<a href="javascript:;">Delete<span class="mw-icon-dropdown"></span></a>'
-                + '<ul>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.deleteRow(mw.inline.activeCell);">Row</a></li>'
-                + '<li><a href="javascript:;" onclick="mw.inline.tableManager.deleteColumn(mw.inline.activeCell);">Column</a></li>'
-                + '</ul>'
-                + '</li>'
-                + '</ul>';
-        }
-        var off = mw.$(el).offset();
-        mw.$(mw.inline.tableControl).css({
-            top: off.top - 45,
-            left: off.left,
-            display: 'block'
-        });
-    },
-    activeCell: null,
-    setActiveCell: function (el, event) {
-        if (!mw.tools.hasClass(el.className, 'tc-activecell')) {
-            mw.$(".tc-activecell").removeClass('tc-activecell');
-            mw.$(el).addClass('tc-activecell');
-            mw.inline.activeCell = el;
-        }
-    },
-    tableManager: {
-        insertColumn: function (dir, cell) {
-            var cell = mw.$(cell)[0];
-            if (cell === null) {
-                return false;
-            }
-            var dir = dir || 'right';
-            var rows = mw.$(cell.parentNode.parentNode).children('tr');
-            var i = 0, l = rows.length, index = mw.tools.index(cell);
-            for (; i < l; i++) {
-                var row = rows[i];
-                var cell = mw.$(row).children('td')[index];
-                if (dir == 'left' || dir == 'both') {
-                    mw.$(cell).before("<td>&nbsp;</td>");
-                }
-                if (dir == 'right' || dir == 'both') {
-                    mw.$(cell).after("<td>&nbsp;</td>");
-                }
-            }
-        },
-        insertRow: function (dir, cell) {
-            var cell = mw.$(cell)[0];
-            if (cell === null) {
-                return false;
-            }
-            var dir = dir || 'under';
-            var parent = cell.parentNode, cells = mw.$(parent).children('td'), i = 0, l = cells.length, html = '';
-            for (; i < l; i++) {
-                html += '<td>&nbsp;</td>';
-            }
-            var html = '<tr>' + html + '</tr>';
-            if (dir == 'under' || dir == 'both') {
-                mw.$(parent).after(html)
-            }
-            if (dir == 'above' || dir == 'both') {
-                mw.$(parent).before(html)
-            }
-        },
-        deleteRow: function (cell) {
-            mw.$(cell.parentNode).remove();
-        },
-        deleteColumn: function (cell) {
-            var index = mw.tools.index(cell), body = cell.parentNode.parentNode, rows = mw.$(body).children('tr'), l = rows.length, i = 0;
-            for (; i < l; i++) {
-                var row = rows[i];
-                mw.$(row.getElementsByTagName('td')[index]).remove();
-            }
-        },
-        setStyle: function (cls, cell) {
-            var table = mw.tools.firstParentWithTag(cell, 'table');
-            mw.tools.classNamespaceDelete(table, 'mw-wysiwyg-table');
-            mw.$(table).addClass(cls);
-        }
-    }
-}
-mw.dynamicCSS = {
-    previewOne: function (selector, value) {
-        if (mwd.getElementById('user_css') === null) {
-            var style = mwd.createElement('style');
-            style.type = 'text/css';
-            style.id = 'user_css';
-            mwd.head.appendChild(style);
-        }
-        else {
-            var style = mwd.getElementById('user_css');
-        }
-        var css = selector + '{' + value + "}";
-        style.appendChild(document.createTextNode(css));
-    },
-    manageObject: function (main_obj, selector_obj) {
-    }
-}
-mw.css3fx = {
-    perspective: function (a) {
-        if (typeof mw.current_element === 'undefined') return false;
-        var el = mw.current_element;
-        var val = "perspective( " + mw.$(el).width() + "px ) rotateY( " + a + "deg )";
-        el.style[mw.JSPrefix('transform')] = val;
-        mw.$(el).addClass("mwfx");
-        mw.css3fx.set_obj(el, "transform", val);
-    },
-    rotate: function (a) {
-        if (typeof mw.current_element === 'undefined') return false;
-        var el = mw.current_element;
-        var val = "matrix(" + Math.cos(a) + "," + Math.sin(a) + "," + -Math.sin(a) + "," + Math.cos(a) + ", 0, 0)";
-        el.style[mw.JSPrefix('transform')] = val;
-        mw.$(el).addClass("mwfx");
-        mw.css3fx.set_obj(el, "transform", val);
-    },
-    set_obj: function (element, option, value) {
-        if (typeof element.attributes["data-mwfx"] !== 'undefined') {
-            var json = mw.css3fx.read(element);
-            json[option] = value;
-            var string = JSON.stringify(json);
-            var string = string.replace(/{/g, "").replace(/}/g);
-            var string = string.replace(/"/g, "XX");
-            mw.$(element).dataset("mwfx", string);
-        }
-        else {
-            mw.$(element).dataset("mwfx", "XX" + option + "XX:XX" + value + "XX");
-        }
-    },
-    init_css: function (el) {
-        var el = el || ".mwfx";
-        mw.$(el).each(function () {
-            var elem = this;
-            var json = mw.css3fx.read(el);
-            $.each(json, function (a, b) {
-                mw.$(elem).css(mw.JSPrefix(a), b);
-            });
-        });
-    },
-    read: function (el) {
-        var el = mw.$(el);
-        var attr = el.dataset("mwfx");
-        if (typeof attr !== 'undefined') {
-            var attr = attr.replace(/XX/g, '"');
-            var attr = attr.replace(/undefined/g, '');
-            var json = $.parseJSON('{' + attr + '}');
-            return json;
-        }
-        else {
-            return false;
-        }
-    }
-}
+
 mw.image = {
     isResizing: false,
     currentResizing: null,
@@ -5321,21 +4598,16 @@ mw.image = {
                     mwd.getElementById('image-settings-button').style.display = 'none';
                 }
                 else {
-                    mwd.getElementById('image-settings-button').style.display = 'inline-block';
+                    mwd.getElementById('image-settings-button').style.display = '';
                 }
             }
             /* } */
         },
         init: function (selector) {
             mw.image_resizer == undefined ? mw.image.resize.prepare() : '';
-            /*
-             mw.$(".element-image").each(function(){
-             var img = this.getElementsByTagName('img')[0];
-             this.style.width = mw.$(img).width()+'px';
-             this.style.height = mw.$(img).height()+'px';
-             });     */
+
             mw.on("ImageClick", function (e, el) {
-                if (!mw.image.isResizing && !mw.isDrag && !mw.settings.resize_started && el.tagName == 'IMG') {
+                if (!mw.image.isResizing && !mw.isDrag && !mw.settings.resize_started && el.tagName === 'IMG') {
                     mw.image.resize.resizerSet(el);
                 }
             })
@@ -5368,7 +4640,7 @@ mw.image = {
         }
         if (!mw.image._isrotating) {
             mw.image._isrotating = true;
-            var img_object = img_object || mwd.querySelector("img.element-current");
+            img_object = img_object || mwd.querySelector("img.element-current");
             if (img_object === null) {
                 return false;
             }
@@ -5391,23 +4663,23 @@ mw.image = {
                 var y = 0;
                 switch (angle) {
                     case 90:
-                        var contextWidth = h;
-                        var contextHeight = w;
-                        var y = -h;
+                        contextWidth = h;
+                        contextHeight = w;
+                        y = -h;
                         break;
                     case 180:
-                        var x = -w;
-                        var y = -h;
+                        x = -w;
+                        y = -h;
                         break;
                     case 270:
-                        var contextWidth = h;
-                        var contextHeight = w;
-                        var x = -w;
+                        contextWidth = h;
+                        contextHeight = w;
+                        x = -w;
                         break;
                     default:
-                        var contextWidth = h;
-                        var contextHeight = w;
-                        var y = -h;
+                        contextWidth = h;
+                        contextHeight = w;
+                        y = -h;
                 }
                 mw.image.Rotator.setAttribute('width', contextWidth);
                 mw.image.Rotator.setAttribute('height', contextHeight);
@@ -5584,19 +4856,12 @@ mw.image = {
     }
 };
 
-mw.module = {
-    load: function () {
-    },
-    reload: function () {
-    },
-    loadData: function () {
-    }
-}
+
 /* Exposing to mw  */
 mw.gallery = function (arr, start, modal) {
-    if (self === top || window == window) {
-        return mw.tools.gallery.init(arr, start, modal)
-    }
+
+    return mw.tools.gallery.init(arr, start, modal)
+
 };
 mw.tooltip = mw.tools.tip;
 mw.tip = function (o) {
@@ -5632,7 +4897,6 @@ mw.uploader = function (o) {
 mw.dropdown = mw.tools.dropdown;
 mw.confirm = mw.tools.confirm;
 mw.tabs = mw.tools.tabGroup;
-mw.inlineModal = mw.tools.inlineModal;
 mw.progress = mw.tools.progress;
 mw.external = function (o) {
     return mw.tools._external(o);
@@ -5996,15 +5260,7 @@ mw.responsive = {
         });
     }
 }
-String.prototype.hash = function () {
-    var self = this, range = Array(this.length);
-    for (var i = 0; i < this.length; i++) {
-        range[i] = i;
-    }
-    return Array.prototype.map.call(range, function (i) {
-        return self.charCodeAt(i).toString(16);
-    }).join('');
-}
+
 
 mw.ajax = function (options) {
     var xhr = $.ajax(options);
@@ -6053,12 +5309,6 @@ mw.extradataForm = function (options, data) {
             mw.$(form).append('<hr><button type="submit" class="mw-ui-btn pull-right mw-ui-btn-invert">' + mw.lang('Submit') + '</button>');
         }
 
-
-
-
-
-
-
         form.action = options.url;
         form.method = options.type;
         form.__modal = mw.modal({
@@ -6070,10 +5320,17 @@ mw.extradataForm = function (options, data) {
             mw.$(form).on('submit', function (e) {
                 e.preventDefault();
                 var exdata = mw.serializeFields(this);
+                if(typeof options.data === 'string'){
+                    var params = {};
+                    options.data.split('&').forEach(function(a){
+                        var c = a.split('=');
+                        params[c[0]] = c[1];
+                    });
+                    options.data = params;
+                }
                 for (var i in exdata) {
                     options.data[i] = exdata[i];
                 }
-
 
                 mw.ajax(options);
                 form.__modal.remove();
@@ -6130,8 +5387,8 @@ mw.uiAccordion = function (options) {
         if (!this.root.length) return;
         this.root.addClass('mw-accordion-ready');
         this.root[0].uiAccordion = this;
-        this.getTitles()
-        this.getContents()
+        this.getTitles();
+        this.getContents();
 
     };
 
@@ -6144,7 +5401,8 @@ mw.uiAccordion = function (options) {
             item = mw.$(q);
         }
         return item;
-    }
+    };
+
     this.set = function (index) {
         var item = this.getItem(index);
         if (!this.options.multiple) {
@@ -6164,7 +5422,8 @@ mw.uiAccordion = function (options) {
             .parents('.mw-accordion-item').eq(0)
             .addClass('active');
         mw.$(this).trigger('accordionSet', [item]);
-    }
+    };
+
     this.unset = function (index) {
         if (typeof index === 'undefined') return;
         var item = this.getItem(index);

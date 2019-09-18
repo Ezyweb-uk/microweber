@@ -75,16 +75,33 @@ if (typeof Range.prototype.querySelectorAll === 'undefined') {
         var nodes = f.querySelectorAll(s);
         r.insertNode(f);
         return nodes;
-    }
+    };
 }
 mw.wysiwyg = {
+    html2text:function(html){
+        return $(mw.tools.parseHtml(html).body).text()
+    },
+    isTargetEditable: function(target){
+        var curr = target;
+        while(curr && curr !== document.body){
+            if(curr.contentEditable === 'true'){
+                return true;
+            } else if(curr.contentEditable === 'inherit'){
+                curr = curr.parentNode;
+            } else {
+                return false;
+            }
+        }
+    },
     isSafeMode: function (el) {
         if (!el) {
             var sel = window.getSelection(),
-                range = sel.getRangeAt(0),
-                el = mw.wysiwyg.validateCommonAncestorContainer(range.commonAncestorContainer);
+                range = sel.getRangeAt(0);
+            el = mw.wysiwyg.validateCommonAncestorContainer(range.commonAncestorContainer);
         }
-        return mw.tools.parentsOrCurrentOrderMatchOrOnlyFirstOrBoth(el, ['safe-mode', 'edit']);
+        var hasSafe = mw.tools.parentsOrCurrentOrderMatchOrOnlyFirstOrBoth(el, ['safe-mode', 'edit']);
+        var regInsafe = mw.tools.parentsOrCurrentOrderMatchOrNone(el, ['regular-mode', 'safe-mode']);
+        return hasSafe && !regInsafe;
     },
     parseClassApplierSheet: function () {
         var sheet = mwd.querySelector('link[classApplier]');
@@ -306,6 +323,9 @@ mw.wysiwyg = {
     handleCopyEvent: function (event) {
         this._lastCopy = event.target;
     },
+    contentEditableSplitTypes: function (el) {
+
+    },
     contentEditable: function (el, state) {
         if (!el) {
             return;
@@ -329,25 +349,39 @@ mw.wysiwyg = {
                 });
             }
         }
-        state = state === true ? 'true' : 'false';
-        if(el.contentEditable !== state) { // chrome setter needs a check
+        if(state === true){
+            state = 'true';
+        } else if(state === false) {
+            state = 'false';
+        }
+        if(state === 'true'){
+            if(mw.wysiwyg.isSafeMode(el)){
+            } else {
+
+                el = mw.tools.firstParentOrCurrentWithAnyOfClasses(el, ['edit', 'regular-mode']);
+            }
+        }
+        if(el && el.contentEditable !== state) { // chrome setter needs a check
+
             el.contentEditable = state;
         }
+
         mw.on.DOMChangePause = false;
     },
 
     prepareContentEditable: function () {
         mw.on("EditMouseDown", function (e, el, target, originalEvent) {
-            //mw.wysiwyg.removeEditable([el]);
-            /*mw.$(".edit[contenteditable='true']").each(function () {
-                mw.wysiwyg.contentEditable(el, false);
-            });*/
-            var _el = mw.$(el);
-            if (!mw.tools.hasAnyOfClassesOnNodeOrParent(target, ['safe-mode'])) {
-                //_el.attr("contentEditable", "true").find('[contenteditable="false"]').not('.module').removeAttr('contenteditable');
+            mw.$('.safe-mode').each(function () {
+                mw.wysiwyg.contentEditable(this, 'inherit');
+            });
+
+            if (!mw.wysiwyg.isSafeMode(target)) {
                 if (!mw.is.ie) { //Non IE browser
                     var orderValid = mw.tools.parentsOrCurrentOrderMatchOrOnlyFirst(originalEvent.target, ['edit', 'module']);
-                    mw.wysiwyg.contentEditable(el, orderValid)
+                    mw.$('.safe-mode').each(function () {
+                        mw.wysiwyg.contentEditable(this, false);
+                    });
+                    mw.wysiwyg.contentEditable(target, orderValid);
                 }
                 else {   // IE browser
                     mw.wysiwyg.removeEditable();
@@ -378,24 +412,19 @@ mw.wysiwyg = {
                 var firstBlock = target;
                 var blocks = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'section', 'footer', 'ul', 'ol'];
                 var blocksClass = ['safe-element'];
-                var po = mw.tools.parentsOrder(firstBlock, ['edit', 'module']);
+                var po = mw.tools.parentsOrCurrentOrderMatchOrOnlyFirst(firstBlock, ['edit', 'module']);
 
-                if (po.module == -1 || po.module > po.edit) {
-
+                if (po) {
                     if (blocks.indexOf(firstBlock.nodeName.toLocaleLowerCase()) === -1 && !mw.tools.hasAnyOfClassesOnNodeOrParent(firstBlock, blocksClass)) {
                         var cls = [];
                         blocksClass.forEach(function (item) {
-                            cls.push('.' + item)
+                            cls.push('.' + item);
                         });
                         cls = cls.concat(blocks);
                         firstBlock = mw.tools.firstMatchesOnNodeOrParent(firstBlock, cls);
                     }
-                    // mw.$('[contenteditable]').not(firstBlock).removeAttr('contenteditable')
                      mw.$("[contenteditable='true']").not(firstBlock).attr("contenteditable", "false");
                     mw.wysiwyg.contentEditable(firstBlock, true);
-                }
-                else {
-                //    mw.$('[contenteditable]').removeAttr('contenteditable')
                 }
 
             }
@@ -1028,25 +1057,7 @@ mw.wysiwyg = {
                     return true;
                 }
                 var sel = window.getSelection();
-                if (event.keyCode === 13) {
 
-                    if (mw.tools.hasAnyOfClassesOnNodeOrParent(event.target, ['safe-mode'])) {
-
-                        var isList = mw.tools.firstMatchesOnNodeOrParent(event.target, ['li', 'ul', 'ol'])
-                        if (!isList) {
-                            event.preventDefault();
-                            if (event.shiftKey) {
-                                mw.wysiwyg.insert_html('<br>');
-                            }
-                            else {
-                                mw.wysiwyg.insert_html('<br><br>');
-                            }
-                        }
-
-
-                    }
-
-                }
                 if (sel.rangeCount > 0) {
                     var r = sel.getRangeAt(0);
                     if (event.keyCode == 9 && !event.shiftKey && sel.focusNode.parentNode.iscontentEditable && sel.isCollapsed) {   /* tab key */
@@ -1178,6 +1189,9 @@ mw.wysiwyg = {
                 //mw.wysiwyg.select_all(mw.tools.firstParentWithClass(target, 'element'));
             }
             var s = window.getSelection();
+            if(!s.rangeCount) {
+                return;
+            }
             var r = s.getRangeAt(0);
             var c = r.cloneContents();
             //var common = mw.wysiwyg.validateCommonAncestorContainer(r.commonAncestorContainer);
@@ -1316,6 +1330,9 @@ mw.wysiwyg = {
         }
     },
     validateCommonAncestorContainer: function (c) {
+        if( !c || !c.parentNode || c.parentNode === document.body ){
+            return null;
+        }
         try {   /* Firefox returns wrong target (div) when you click on a spin-button */
             if (typeof c.querySelector === 'function') {
                 return c;
@@ -1341,26 +1358,26 @@ mw.wysiwyg = {
         if (!node) {
             return false;
         }
-        var a = a || 'start';
+        a = (a || 'start').trim();
         var sel = mww.getSelection();
         var r = mwd.createRange();
         sel.removeAllRanges();
-        if (a == 'start') {
+        if (a === 'start') {
             r.selectNodeContents(node);
             r.collapse(true);
             sel.addRange(r);
         }
-        else if (a == 'end') {
+        else if (a === 'end') {
             r.selectNodeContents(node);
             r.collapse(false);
             sel.addRange(r);
         }
-        else if (a == 'before') {
+        else if (a === 'before') {
             r.selectNode(node);
             r.collapse(true);
             sel.addRange(r);
         }
-        else if (a == 'after') {
+        else if (a === 'after') {
             r.selectNode(node);
             r.collapse(false);
             sel.addRange(r);
@@ -2547,10 +2564,8 @@ mw.wysiwyg.dropdowns = function () {
             }
             else if (val === 'table') {
                 var el = mw.wysiwyg.applier('div', 'element', {width: "100%"});
-                //el.innerHTML = '<table class="mw-wysiwyg-table"><tbody><tr><td onclick="mw.inline.setActiveCell(this, event);" onkeyup="mw.inline.setActiveCell(this, event);">Lorem Ipsum</td><td onclick="mw.inline.setActiveCell(this, event);" onkeyup="mw.inline.setActiveCell(this, event);">Lorem Ipsum</td></tr><tr><td onclick="mw.inline.setActiveCell(this, event);" onkeyup="mw.inline.setActiveCell(this, event);">Lorem Ipsum</td><td onclick="mw.inline.setActiveCell(this, event);" onkeyup="mw.inline.setActiveCell(this, event);">Lorem Ipsum</td></tr></tbody></table>';
                 el.innerHTML = '<table class="mw-wysiwyg-table"><tbody><tr><td>Lorem Ipsum</td><td  >Lorem Ipsum</td></tr><tr><td  >Lorem Ipsum</td><td  >Lorem Ipsum</td></tr></tbody></table>';
 
-                //   el.querySelector('table').setAttribute('onclick', 'mw.inline.tableController(this, event);');
             }
             else if (val === 'quote') {
                 var div = mw.wysiwyg.applier('blockquote', 'element');
@@ -2745,22 +2760,18 @@ mw.linkTip = {
     tip: function (node) {
 
         var link_id = null;
-        if (typeof(node) == 'object' && (typeof(node.id) == null) || node.id == '') {
-            link_id = 'mw-link-id-' + mw.random()
+        if (typeof(node) === 'object' && !node.id) {
+            link_id = 'mw-link-id-' + mw.random();
             node.id = link_id;
         }
-        if (typeof(node) == 'object' && (typeof(node.id) != null) || node.id != '') {
-            var link_id = node.id;
+        if (typeof(node) === 'object' && !!node.id) {
+            link_id = node.id;
         }
         if (!mw.linkTip._tip) {
-
             var href_target = '_self';
-
             if (node.href.indexOf(location.host) !== -1) {
-                //different page
-                var href_target = '_blank';
+                href_target = '_blank';
             }
-
             var content = '<a href="' + node.getAttribute('href') + '" target="' + href_target + '"  edit-id="' + link_id + '" class="mw-link-tip-link">' + node.getAttribute('href') + '</a><span>-</span><a edit-href="' + node.getAttribute('href') + '" edit-id="' + link_id + '" href="javascript:;" class="mw-link-tip-edit">Edit</a>';
             mw.linkTip._tip = mw.tooltip({content: content, position: 'bottom-center', skin: 'dark', element: node});
             mw.$(mw.linkTip._tip).addClass('mw-link-tip');

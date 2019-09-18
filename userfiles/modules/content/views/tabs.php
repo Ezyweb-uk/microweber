@@ -104,7 +104,7 @@ $custom_tabs = mw()->modules->ui('content.edit.tabs');
                             <span
                                 onclick="$('.mw-ui-category-selector').toggle()"
                                 class="mw-ui-btn mw-ui-btn-info mw-ui-btn-outline mw-ui-btn-rounded pull-right add-to-cats">
-                                <i class="mai-plus"></i> Add to categories
+                                <i class="mai-plus"></i> &nbsp; <?php _e('Add to categories'); ?>
                             </span>
                         </div>
                         <div class="mw-ui-category-selector mw-ui-category-selector-abs mw-tree mw-tree-selector"
@@ -175,40 +175,6 @@ $custom_tabs = mw()->modules->ui('content.edit.tabs');
                                                     }
                                                 })
 
-
-                                                /*
-
-                                                var atcmplt = $("<div style='display: inline-block;'></div>");
-
-                                                $(".post-category-tags").after(atcmplt);
-
-                                                var atData = [];
-
-                                                $.each(tdata, function () {
-                                                    var item = Object.assign({}, this);
-
-                                                    item.id =  item.id;
-                                                    atData.push(item)
-                                                });
-
-
-                                                categorySelector.autoComplete = new mw.autoComplete({
-                                                    data: atData,
-                                                    element:atcmplt
-                                                });
-
-                                                $(categorySelector.autoComplete).on('change', function(e, val){
-
-                                                    categorySelector.tree.select(val);
-                                                    $(".mw-tree-selector").show();
-
-                                                    var el = categorySelector.tree.list.querySelector('[data-id="'+val.id+'"][data-type="'+val.type+'"]');
-                                                    mw.tools.highlight(el);
-                                                    if(el){
-                                                        el.scrollIntoView();
-                                                    }
-
-                                                });*/
 
                                             });
 
@@ -328,7 +294,7 @@ $(document).ready(function () {
 		element: '.mw-ui-color-picker',
 		position: 'bottom-left',
 		onchange: function (color) {
-			// 
+			//
 		}
 	});
 });

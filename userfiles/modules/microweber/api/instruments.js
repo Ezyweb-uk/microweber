@@ -7,12 +7,15 @@ mw.instruments = {
         frame.className = 'mw-instrument-frame';
         frame.frameBorder = '0';
         $(frame).css(settings.css || {width: '100%'}).on('load', function () {
-            this.contentWindow.thisframe= this;
-            if(!settings.css || !settings.css.height) {
-                mw.tools.iframeAutoHeight(this);
-            }
+            mw.instruments._prepareFrame(frame, settings);
         });
         return frame;
+    },
+    _prepareFrame: function (frame, settings) {
+        frame.contentWindow.thisframe = frame;
+        if(!settings.css || !settings.css.height) {
+            mw.tools.iframeAutoHeight(frame);
+        }
     },
     _run: {},
     run: function(config){
@@ -20,7 +23,7 @@ mw.instruments = {
             return;
         }
         config.show = typeof config.show === 'undefined' ? true : config.show;
-        config.width = config.width || 600;
+        config.width = config.width || 660;
         if(!this._run[config.id]){
             var inst = this[config.instrument]({
                 mode: 'inline'
@@ -89,7 +92,7 @@ mw.instruments = {
             });
         } else if(settings.mode === 'dialog') {
           dialog = mw.dialogIframe({
-              url:' rte_link_editor',
+              url:' link_editor',
               height: 'auto',
               autoHeight: true
           });
@@ -109,6 +112,9 @@ mw.instruments = {
         $(frame).on('load', function(url, target, text){
             this.contentWindow.mw.instrumentData = final;
         });
+        if(frame.contentWindow && frame.contentWindow.mw){
+            frame.contentWindow.mw.instrumentData = final;
+        }
         return final;
     },
     file: function(config){
@@ -144,6 +150,9 @@ mw.instruments = {
         $(frame).on('load', function(url, target, text){
             this.contentWindow.mw.instrumentData = final;
         });
+        if(frame.contentWindow && frame.contentWindow.mw){
+            frame.contentWindow.mw.instrumentData = final;
+        }
         return final;
     }
 };

@@ -67,9 +67,11 @@ $here = mw_includes_url() . 'toolbar/editor_tools/plupload/';
         uploader = new plupload.Uploader({
             runtimes: 'html5',
             browse_button: 'pickfiles_<?php print $uid  ?>',
-            debug: 1,
+            debug: 0,
+            max_retries: 10,
             container: 'container',
-            chunk_size: '1000kb',
+          //  chunk_size: '1500kb',
+            chunk_size: 1500000,
             url: '<?php print site_url('plupload'); ?>?' + urlparams,
             filters: filters,
             multi_selection: multi
@@ -79,7 +81,11 @@ $here = mw_includes_url() . 'toolbar/editor_tools/plupload/';
             var base = mw.url.strip(uploader.settings.url);
             var params = mw.url.getUrlParams(uploader.settings.url);
             var u = base + "?" + json2url(params) + "&" + json2url(data);
-            uploader.settings.url = u;
+         //   uploader.settings.url = u;
+            uploader.setOption('url', u);
+
+
+
         }
         uploader.init();
         uploader.bind('FilesAdded', function (up, files) {

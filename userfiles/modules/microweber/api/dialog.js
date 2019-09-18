@@ -82,11 +82,20 @@
                 if (mw.tools.canAccessIFrame(frame)) {
                     mw.$(frame.contentWindow.document).on('keydown', function (e) {
                         if (mw.event.is.escape(e) && !mw.event.targetIsField(e)) {
-                            if (dialog.options.closeOnEscape) {
-                                dialog.remove();
+                            if(frame.contentWindow.mw.__dialogs && frame.contentWindow.mw.__dialogs.length){
+                                var dlg = frame.contentWindow.mw.__dialogs;
+                                dlg[dlg.length - 1].remove();
+                            }
+                            else {
+                                if (dialog.options.closeOnEscape) {
+                                    dialog.remove();
+                                }
                             }
                         }
-                    })
+                    });
+                }
+                if(typeof options.onload === 'function') {
+                    options.onload.call(dialog)
                 }
             });
         }, 12);

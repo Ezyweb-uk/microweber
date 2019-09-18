@@ -123,6 +123,12 @@ mw.settings.libs = {
             mw.require(mw.settings.libs_url + 'bootstrap-datepicker' + '/js/bootstrap-datepicker.js', true);
         }
     ],
+    bootstrap_datetimepicker: [
+        function () {
+            mw.require(mw.settings.libs_url + 'bootstrap-datetimepicker' + '/css/bootstrap-datetimepicker.min.css', true);
+            mw.require(mw.settings.libs_url + 'bootstrap-datetimepicker' + '/js/bootstrap-datetimepicker.min.js', true);
+        }
+    ],
     bootstrap3ns: [
         function () {
             //var bootstrap_enabled = (typeof $().modal == 'function');
@@ -219,6 +225,10 @@ mw.settings.libs = {
             mw.require(mw.settings.libs_url + 'mw-icons-mind' + '/line/style.css');
             mw.require(mw.settings.libs_url + 'mw-icons-mind' + '/solid/style.css');
         }
+    ],
+    uppy: [
+        'uppy.min.js',
+        'uppy.min.css'
     ]
 };
 
@@ -275,7 +285,7 @@ mw.lib = {
             });
         }
     }
-}
+};
 
 mw.lang = function (key) {
     var camel = key.trim().replace(/(?:^\w|[A-Z]|\b\w)/g, function (letter, index) {

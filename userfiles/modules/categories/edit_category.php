@@ -106,19 +106,8 @@ if (isset($params['live_edit'])) {
                     if (window.pagesTreeRefresh) {
                         pagesTreeRefresh()
                     }
-                    ;
-                    /*mw.$('[data-type="pages"]').removeClass("activated");
-                     mw.reload_module('[data-type="pages"]', function () {
-                     mw.treeRenderer.appendUI('[data-type="pages"]');
-                     mw.tools.tree.recall(mwd.querySelector("#pages_tree_toolbar").parentNode);
-                     var action = mw.url.windowHashParam('action');
-                     if(action){
-                     var id = action.split(':')[1];
-                     if(id){
-                     $('[data-category-id="'+id+'"]').addClass("active-bg")
-                     }
-                     }
-                     });*/
+
+
                     <?php if(intval($data['id']) == 0): ?>
                     mw.url.windowHashParam("new_content", "true");
 
@@ -224,7 +213,7 @@ if (isset($params['live_edit'])) {
                                 <?php endif; ?>
 
                                 <?php if (intval($data['id']) != 0): ?>
-                                    <a href="javascript:mw.tools.tree.del_category('<?php print ($data['id']) ?>');" class="mw-ui-btn mw-ui-btn-outline mw-ui-btn-important"><i class="mw-icon-bin"></i>&nbsp; <?php _e('Delete') ?></a>
+                                    <a href="javascript:mw.content.deleteCategory('<?php print ($data['id']) ?>');" class="mw-ui-btn mw-ui-btn-outline mw-ui-btn-important"><i class="mw-icon-bin"></i>&nbsp; <?php _e('Delete') ?></a>
                                 <?php endif; ?>
                             </div>
 
@@ -336,11 +325,6 @@ if (isset($params['live_edit'])) {
                                 }
                             })
                         });
-                        /*
-                         mw.treeRenderer.appendUI('#edit_category_set_par');
-                         mw.tools.tree.openAll(mwd.getElementById('edit_category_set_par'));
-                         */
-
 
                         var _parent = mwd.querySelector('#edit_category_set_par input:checked');
 
