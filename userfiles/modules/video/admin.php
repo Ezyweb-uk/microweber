@@ -6,6 +6,8 @@
 	2) refresh chk_autoplay setting after thumbnail upload in admin popup
 	3) reduce number of saved notifications in admin popup
 	4) test with vimeo, metacafe, dailymotion, and facebook videos
+	5) add method to remove thumbnail
+	6) add jquery to update chk_autoplay with chk_autoplay_2 setting and vice versa.
 */
 ?>
 
@@ -139,6 +141,14 @@
                                 <label class="mw-ui-label"><?php _e("Paste video URL or Embed Code"); ?></label>
                                 <textarea name="embed_url" id="emebed_video_field" class="mw-ui-field mw_option_field w100" data-mod-name="<?php print $params['data-type'] ?>"><?php print (get_option('embed_url', $params['id'])) ?></textarea>
                             </div>
+                            <?php //maybe it is assumed the pasted url will contain the required autoplay setting but the checkbox option might be useful when a url without params is used ?>
+                            <div class="mw-ui-field-holder">
+                                <label class="mw-ui-check">
+                                    <input id="chk_autoplay_2" name="autoplay" class="mw-ui-field mw_option_field" type="checkbox" data-mod-name="<?php print $params['data-type'] ?>" value="y" <?php if (get_option('autoplay', $params['id']) == 'y') { ?> checked='checked' <?php } ?>/>
+                                    <span></span>
+                                    <span><?php _e("Autoplay"); ?></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="mw-accordion-item">
@@ -221,9 +231,9 @@
                         </div>
                         <div class="mw-accordion-content mw-ui-box mw-ui-box-content">
                             <div class="mw-ui-field-holder">
-                                <label class="mw-ui-label"><?php _e("Upload Video Thumbnail from your computer"); ?>
+                                <label class="mw-ui-label"><?php _e("Upload Video Thumbnail from your computer for lazy loading"); ?>
                                     <br>
-                                    <small><?php _e("Optional thumbnail image for use with uploaded or embedded videos. Required if Lazy Loading selected."); ?>
+                                    <small><?php _e("Optional thumbnail image for use with uploaded or embedded videos. Video lazy loading will be enabled."); ?>
                                     </small>
                                 </label>
 
@@ -246,29 +256,9 @@
                         </div>
                     </div>
 
-                    <div class="mw-accordion-item">
-                        <div class="mw-ui-box-header mw-accordion-title">
-                            <div class="header-holder">
-                                <i class="mai-setting2"></i>Video Lazy Loading
-                            </div>
-                        </div>
-                        <div class="mw-accordion-content mw-ui-box mw-ui-box-content">
-                            <div class="mw-ui-field-holder">
-                                <label class="mw-ui-label"><?php _e("Video Lazy Loading for SEO"); ?>
-                                    <br>
-                                    <small><?php _e("Optional setting for use with embedded YouTube videos to defer the downloading of video scripts. Thumbnail image required, see Thumbnail Upload section."); ?>
-                                    </small>
-                                </label>
-                                <div class="row" style="margin-top:10px;">
-                                    <div class="mw-ui-check col-xs-6">
-                                        <input id="chk_lazyload" name="lazyload" class="mw-ui-field mw_option_field" type="checkbox" data-mod-name="<?php print $params['data-type'] ?>" value="y" <?php if (get_option('lazyload', $params['id']) == 'y') { ?> checked='checked' <?php } ?>/>
-                                        <span></span>
-                                        <span><?php _e("Lazy load"); ?></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+
+
+
                 </div>
 
 
