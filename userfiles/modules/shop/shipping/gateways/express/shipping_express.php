@@ -23,6 +23,7 @@ class shipping_express
     function __construct($app = false)
     {
         $this->table = 'cart_shipping';
+        $this->gateway_id = 'express';
         if (!is_object($this->app)) {
 
             if (is_object($app)) {
@@ -282,6 +283,8 @@ class shipping_express
             }
         }
 
+		$data['gateway_id'] = $this->gateway_id;
+
         $data = mw()->database_manager->save($this->table, $data);
         return ($data);
     }
@@ -292,6 +295,8 @@ class shipping_express
         $params = parse_params($params);
 
         $params['table'] = $this->table;
+
+        $params['gateway_id'] = $this->gateway_id;
 
         if (!isset($params['order_by'])) {
             $params['order_by'] = 'position ASC';
